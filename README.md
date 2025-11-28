@@ -1,139 +1,140 @@
-## Fabrikada Dinamik Operatör Ataması  
-### Tabular Q-Learning ile Kısa Proje Raporu
+## 🏭 Dinamik Operatör Ataması – Q-Learning ile Küçük Bir Fabrika Oyunu
 
-Bu çalışmada, 4 makine ve 6 operatörlü küçük bir üretim hattında,  
-operatör–makine atamasını **tabular Q-learning** ile otomatikleştirmeyi denedim.  
-Amaç; operatör becerileri, vardiya süreleri, arıza/bakım durumları ve günlük üretim hedefi  
-gibi gerçekçi kısıtlar altında, ajanın zamanla mantıklı bir atama politikası öğrenmesidir.
-
----
-
-## 1. Problem ve Senaryo
-
-- **Makineler:** Pres, Torna, Kaynak, Paketleme (toplam 4 makine).  
-- **Operatörler:** 6 kişi, her makinede farklı beceri seviyeleri (0.1–1.0 arası).  
-- **Zaman:** 3 vardiya × 8 saat = 1440 dakika (bir gün).  
-- **Hedef:** Günde ortalama **90 sağlam parça** üretmek.  
-- **Kısıtlar:**
-  - Her operatörün vardiya başına dakika sınırı (yorgunluk/kapasite).  
-  - Makinelerde rastgele **arıza** ve **bakım** süreleri.  
-  - Yüksek becerili operatör + uygun makine = daha hızlı ve az hatalı üretim.
-
-Pratikte cevap aranan soru şudur:  
-**“Hangi anda, hangi boş makineye, hangi operatörü verirsem uzun vadede daha iyi üretim alırım?”**
+Bu proje, 4 makine ve 6 operatörlü küçük bir fabrika ortamında, operatör–makine
+atamasını **tabular Q-learning** ile denemek için yazıldı. Amaç; hangi durumda
+hangi operatörü hangi makineye verirsem uzun vadede daha çok sağlam parça üretirim,
+onu ödül (reward) sinyaliyle ajanımıza yavaş yavaş öğretmek.
 
 ---
 
-## 2. RL Formülasyonu (State – Action – Reward)
+## State – Action – Reward (kısaca)
 
-### 2.1 State (Durum)
+### State (Durum)
 
-Her karar anında ajan, fabrikanın “özet bir fotoğrafını” görüyor:
+Her karar anında ajan şu bilgilerin ayrıklaştırılmış halini görüyor:
 
-- Atama bekleyen makinenin ID’si ve önceliği (0–3, öncelik 0–2).  
-- Hangi vardiyada olduğumuz (0, 1, 2) ve günün bitimine kalan süre kovası (0–3).  
-- Hedefe kalan parça miktarının kovası (0–3).  
-- Her operatör için **boş / meşgul** bilgisi (0/1).  
-- Mevcut makineye göre her operatörün beceri kovası (düşük / orta / yüksek).  
-- Her makinenin durumu: boşta, çalışıyor, arızalı veya bakımda.
+- **Mevcut makine ID**: Şu an atama bekleyen makine (0–3)
+- **Makine önceliği**: 0 = düşük, 1 = orta, 2 = yüksek
+- **Vardiya indeksi**: 0, 1, 2 (gün 3 vardiyadan oluşuyor)
+- **Kalan süre kovası**: Günün bitimine kalan süre (0–3 arası kova)
+- **Üretim açığı kovası**: Hedefe kalan parça miktarı (0–3 arası kova)
+- **Operatör müsaitlikleri**: Her operatör için 0 = meşgul, 1 = boş
+- **Operatör beceri kovaları**: Mevcut makine için her operatörün beceri seviyesi (düşük / orta / yüksek)
+- **Makine durumları**: Her makine için idle / busy / broken / maintenance bilgisi
 
-Bu bilgiler bir `tuple` içinde birleştirilip Q-tablosunda state anahtarı olarak kullanılıyor.
+Bu bilgiler bir `tuple` içine konup Q-tablosunda **state anahtarı** olarak kullanılıyor.
 
-### 2.2 Action (Eylem)
+### Action (Eylem)
 
-Eylem uzayı basit tutuldu:
+Ajan her adımda tek bir karar veriyor:
 
-- `0 .. 5` → ilgili operatörü (0–5) şu anki boş makineye ata.  
-- `6`      → bu adımda kimseyi atama, makineyi boş bırak.  
+- **0 … (num_operators − 1)**: İlgili operatörü şu anki boş makineye ata
+- **num_operators**: Kimseyi atama, makine o adımda boş kalsın
 
-Toplam **7 eylem** vardır. Ajan her karar anında bu 7 seçenekten birini seçer.
+Yani toplam eylem sayısı = **operatör sayısı + 1**.
 
-### 2.3 Reward (Ödül)
+### Reward (Ödül)
 
-Ödül fonksiyonu; **sağlam parça üretimini artıran, makine boşluğunu azaltan  
-ve hatalı üretimi engelleyen** kararları ödüllendirecek şekilde tasarlandı:
+Tam sayılar `config/demo_config.py` içindeki `reward_params` sözlüğünde duruyor.
+Burada sadece mantığı özetliyorum:
 
-- Sağlam parça üretmek → pozitif ödül (parça başına).  
-- Yüksek becerili operatörü doğru makineye atamak → ek bonus.  
-- Makineyi gereksiz boş bırakmak → ceza.  
-- Hatalı ürün ve çok düşük beceriyle yavaş üretim → daha büyük ceza.  
-- Gün sonu:
-  - Hedefe yaklaştıkça bonus,  
-  - Hedefin çok altında kalındığında eksik parça başına ceza.
+- **Pozitif ödüller**
+  - Sağlam parça üretince +puan
+  - Yüksek becerili operatörü uygun makineye atayınca ekstra +puan
+  - Makine boş kalmadan hemen önce atama yapınca hafif +puan
+  - Günlük üretim hedefini tutturunca veya belli yüzdelerini geçince bonus
+- **Cezalar**
+  - Makineyi boş bırakınca −puan
+  - Uygunsuz eşleşme sonucu çok yavaş üretim olunca −puan
+  - Hatalı / kusurlu ürün çıkınca yüksek −puan
+  - Gün sonunda hedefin altında kalan her parça için ek −puan
 
-Bu yapı sayesinde ajan, uzun vadede **“doğru kişiyi doğru makineye ver, makineleri boş bırakma,
-çok hata yapma”** tarzı bir politika öğrenmeye başlıyor.
-
----
-
-## 3. Ortam ve Ajanın Kısa Özeti
-
-### 3.1 Ortam (FactoryEnv)
-
-`FactoryEnv` sınıfı:
-
-- Zamanı dakikalar üzerinden takip eder, gün 1440 dakikada biter.  
-- Aynı anda birden fazla makinenin çalışabildiği **paralel** bir üretim süreci simüle eder.  
-- Her operatörün vardiya başına çalışma süresini ve yorgunluk seviyesini tutar.  
-- Her parça sonunda, arıza/bakım durumlarını kontrol eder ve makineyi geçici olarak devre dışı bırakabilir.  
-- Ajanın verdiği atama kararlarına göre ödül/ceza üretir ve bir sonraki state’i hesaplar.
-
-### 3.2 Q-Learning Ajanı
-
-`QLearningAgent` sınıfı:
-
-- Q-tablosunu `dict[state][action]` yapısında tutar.  
-- Eylem seçiminde epsilon-greedy stratejisi kullanır:
-  - Başta `epsilon ≈ 1.0` (fazla keşif),  
-  - Eğitim boyunca yaklaşık **10.000 bölüm** içinde `0.05` seviyesine kadar düşer.  
-- Öğrenme oranı (alpha) ilk başta yüksek, sonra yavaş yavaş azalır; böylece
-  erken dönemlerde hızlı değişim, geç dönemlerde daha stabil bir öğrenme elde edilir.  
-- Q-değerlerini klasik formülle günceller:
-  - \( Q(s,a) ← Q(s,a) + α (r + γ \max_{a'} Q(s',a') − Q(s,a)) \).
+Kısaca: **doğru kişiyi doğru makineye verip makineleri boşa bekletmeyen** politikalar zamanla
+daha yüksek toplam ödül alıyor ve Q-tablosu bunu yansıtmaya başlıyor.
 
 ---
 
-## 4. Eğitim, Değerlendirme ve Görselleştirme
+## Proje Yapısı (özet)
 
-- Eğitim script’i: `scripts/main_train.py`  
-  - 10.000 bölüm boyunca ajan ortamda eğitilir.  
-  - Q-tablosu hem `.pkl` hem de `.h5` formatında kaydedilir.  
-  - En iyi bölümlerden biri kullanılarak **eğitim GIF’i** üretilir:
-    - `outputs/training_best_episode.gif`
+```text
+dynamic_operator_qlearning/
+├── env/                  # Fabrika ortamı (FactoryEnv)
+├── agent/                # Q-learning ajanı
+├── config/               # Senaryo ve parametreler
+├── scripts/              # Eğitim / değerlendirme / test script’leri
+├── utils/                # Grafik ve GIF yardımcıları
+└── outputs/              # Eğitim grafikleri ve GIF çıktıları
+```
 
-- Değerlendirme script’i: `scripts/main_eval.py`  
-  - Eğitilmiş ajan, 100 bölüm boyunca **greedy** politika ile çalıştırılır.  
-  - Ortalama ödül ve ortalama üretim raporlanır.  
-  - İlk bölümün akışı için `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/evaluation_run.gif` üretilir.
-
-- Test script’i: `scripts/main_test.py`  
-  - Yine 100 bölüm greedy test yapılır, daha ayrıntılı istatistikler toplanır.  
-  - İlk test bölümünden `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/test_run.gif` elde edilir.
-
-Eğitim sürecinin genel eğilimini görmek için:
-
-- `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/returns.png` → bölüm başına toplam ödül (hareketli ortalama ile).  
-- `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/productions.png` → bölüm başına üretilen sağlam parça sayısı.
-
-Bu grafikler, ajan gerçekten öğreniyor mu ve ne zaman “plato” seviyesine oturuyor,
-onu anlamayı kolaylaştırıyor.
+En çok değiştirilen dosyalar genelde `env/factory_env.py`,
+`agent/q_learning_agent.py` ve `scripts/main_train.py`.
 
 ---
 
-## 5. Sonuç ve Kısa Değerlendirme
+## Nasıl Çalıştırılır?
 
-Bu proje, görece küçük ama gerçekçi bir fabrika senaryosunda,
-**tabular Q-learning** ile dinamik operatör atamasının nasıl yapılabileceğini göstermektedir.
+Önce bağımlılıkları kurmak için proje kök dizininde:
 
-- Ajan; makine önceliği, operatör becerileri, kapasite kısıtları ve arıza/bakım gibi  
-  unsurları dolaylı olarak state ve reward üzerinden “öğrenebilmektedir”.  
-- Eğitim ilerledikçe, makinelerin daha az boş kaldığı ve sağlam parça üretiminin
-  hedefe yaklaştığı gözlemlenmektedir.  
-- Kod yapısı özellikle öğrenci seviyesinde sade tutulduğu için,  
-  Q-learning adımlarını ve tablo güncellemelerini takip etmek görece kolaydır.
+```bash
+pip install -r requirements.txt
+```
 
-Genel olarak, bu çalışma hem pekiştirmeli öğrenme kavramlarını uygulamalı olarak  
-denemek, hem de üretim planlama problemlerine yapay zekâ bakış açısından  
-yaklaşmak adına faydalı bir deneyim olmuştur.
+Sonra PowerShell’de klasöre girip:
+
+```powershell
+cd C:\Users\MSI\Desktop\dynamic_operator_qlearning
+
+# 1) Eğitimi başlat (Q-learning)
+py -m scripts.main_train
+
+# 2) Eğitilmiş politikayı basit şekilde değerlendir
+py -m scripts.main_eval
+
+# 3) Daha detaylı test ve istatistikler
+py -m scripts.main_test
+```
+
+Eğitim bittiğinde Q-tablosu `q_table.pkl` ve `q_table.h5` olarak kaydedilir.
+Grafikler ve GIF’ler `outputs/` klasörüne yazılır.
+
+---
+
+## GIF’ler ve Grafikler (kısaca)
+
+Bu proje, öğrenme sürecini görmek için birkaç basit görsel üretiyor:
+
+- **Eğitim GIF’i**  
+  ![Eğitim GIF'i](outputs/training_best_episode.gif)  
+  En yüksek ödülü alan eğitim bölümünün zaman içindeki akışını gösteriyor.
+
+- **Değerlendirme GIF’i**  
+  ![Değerlendirme GIF'i](outputs/evaluation_run.gif)  
+  Eğitilmiş (greedy) politikanın 1 bölümde nasıl davrandığını gösteriyor.
+
+- **Test GIF’i**  
+  ![Test GIF'i](outputs/test_run.gif)  
+  Ayrıntılı testte ilk bölümün operatör–makine hareketlerini özetliyor.
+
+- **İsteğe bağlı final demo**  
+  ![Final Demo GIF'i](outputs/final_demo.gif)  
+  `scripts/create_gif.py` ile istenirse ek bir tanıtım animasyonu alınabiliyor.
+
+Eğitim performansını görmek için de:
+
+- **Returns grafiği**  
+  ![Returns Grafiği](outputs/returns.png)
+
+- **Productions grafiği**  
+  ![Productions Grafiği](outputs/productions.png)
+
+Bu iki grafik, ajan gerçekten bir şeyler öğrenmiş mi diye hızlıca bakmak için yeterli oluyor.
+
+---
+
+## Küçük Not
+
+Kodlar, bir ders / yüksek lisans projesi havasında yazılmıştır.  
+Yorum satırları ve değişken isimleri tamamen akademik değil; biraz “deneme–yanılma”
+düşüncesiyle ve anlaşılır olsun diye seçilmiştir.
 
 
