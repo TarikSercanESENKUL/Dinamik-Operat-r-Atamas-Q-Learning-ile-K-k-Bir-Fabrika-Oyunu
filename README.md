@@ -52,53 +52,6 @@ Burada sadece mantığı özetliyorum:
 Kısaca: **doğru kişiyi doğru makineye verip makineleri boşa bekletmeyen** politikalar zamanla
 daha yüksek toplam ödül alıyor ve Q-tablosu bunu yansıtmaya başlıyor.
 
----
-
-## Proje Yapısı (özet)
-
-```text
-dynamic_operator_qlearning/
-├── env/                  # Fabrika ortamı (FactoryEnv)
-├── agent/                # Q-learning ajanı
-├── config/               # Senaryo ve parametreler
-├── scripts/              # Eğitim / değerlendirme / test script’leri
-├── utils/                # Grafik ve GIF yardımcıları
-└── outputs/              # Eğitim grafikleri ve GIF çıktıları
-```
-
-En çok değiştirilen dosyalar genelde `env/factory_env.py`,
-`agent/q_learning_agent.py` ve `scripts/main_train.py`.
-
----
-
-## Nasıl Çalıştırılır?
-
-Önce bağımlılıkları kurmak için proje kök dizininde:
-
-```bash
-pip install -r requirements.txt
-```
-
-Sonra PowerShell’de klasöre girip:
-
-```powershell
-cd C:\Users\MSI\Desktop\dynamic_operator_qlearning
-
-# 1) Eğitimi başlat (Q-learning)
-py -m scripts.main_train
-
-# 2) Eğitilmiş politikayı basit şekilde değerlendir
-py -m scripts.main_eval
-
-# 3) Daha detaylı test ve istatistikler
-py -m scripts.main_test
-```
-
-Eğitim bittiğinde Q-tablosu `q_table.pkl` ve `q_table.h5` olarak kaydedilir.
-Grafikler ve GIF’ler `outputs/` klasörüne yazılır.
-
----
-
 ## GIF’ler ve Grafikler (kısaca)
 
 Bu proje, öğrenme sürecini görmek için birkaç basit görsel üretiyor:
