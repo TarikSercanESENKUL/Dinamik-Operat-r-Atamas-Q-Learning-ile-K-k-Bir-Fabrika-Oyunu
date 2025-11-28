@@ -83,11 +83,3 @@ Eğitim performansını görmek için de:
 Bu iki grafik, ajan gerçekten bir şeyler öğrenmiş mi diye hızlıca bakmak için yeterli oluyor.
 
 ---
-
-## Küçük Not
-
-Kodlar, bir ders / yüksek lisans projesi havasında yazılmıştır.  
-Yorum satırları ve değişken isimleri tamamen akademik değil; biraz “deneme–yanılma”
-düşüncesiyle ve anlaşılır olsun diye seçilmiştir.
-
-
