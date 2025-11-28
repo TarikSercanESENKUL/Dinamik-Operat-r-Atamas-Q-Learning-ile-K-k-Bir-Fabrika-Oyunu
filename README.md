@@ -104,16 +104,16 @@ Bu yapı sayesinde ajan, uzun vadede **“doğru kişiyi doğru makineye ver, ma
 - Değerlendirme script’i: `scripts/main_eval.py`  
   - Eğitilmiş ajan, 100 bölüm boyunca **greedy** politika ile çalıştırılır.  
   - Ortalama ödül ve ortalama üretim raporlanır.  
-  - İlk bölümün akışı için `outputs/evaluation_run.gif` üretilir.
+  - İlk bölümün akışı için `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/evaluation_run.gif` üretilir.
 
 - Test script’i: `scripts/main_test.py`  
   - Yine 100 bölüm greedy test yapılır, daha ayrıntılı istatistikler toplanır.  
-  - İlk test bölümünden `outputs/test_run.gif` elde edilir.
+  - İlk test bölümünden `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/test_run.gif` elde edilir.
 
 Eğitim sürecinin genel eğilimini görmek için:
 
-- `outputs/returns.png` → bölüm başına toplam ödül (hareketli ortalama ile).  
-- `outputs/productions.png` → bölüm başına üretilen sağlam parça sayısı.
+- `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/returns.png` → bölüm başına toplam ödül (hareketli ortalama ile).  
+- `Dinamik-Operat-r-Atamas-Q-Learning-ile-K-k-Bir-Fabrika-Oyunu/outputs/productions.png` → bölüm başına üretilen sağlam parça sayısı.
 
 Bu grafikler, ajan gerçekten öğreniyor mu ve ne zaman “plato” seviyesine oturuyor,
 onu anlamayı kolaylaştırıyor.
